@@ -1,0 +1,188 @@
+================================================
+First steps - setup the project
+================================================
+1. Run `npm init -y`
+2. Install TS - `npm i typescript`
+3. Run `tsc --init`
+
+
+================================================
+Second steps - change tsconfig.json file
+================================================
+1. Use this tsconfig.json
+    `
+        {
+            "compilerOptions": {
+                "target": "es2015",
+                "module": "commonjs",
+                "lib": ["DOM", "ES2015"],
+                "baseUrl": ".",
+                "outDir": "./build",
+                "rootDir": "src",
+                "strict": true,
+                "noImplicitAny": true,
+                "noUnusedLocals": false,
+                "noUnusedParameters": false,
+                "moduleResolution": "node",
+                "esModuleInterop": true,
+                "sourceMap": true,
+                "experimentalDecorators": true,
+                "emitDecoratorMetadata": true,
+                "forceConsistentCasingInFileNames": true,
+                "allowSyntheticDefaultImports": true,
+                "pretty": true,
+                "resolveJsonModule": true
+            }
+        }
+    `
+
+================================================
+Third steps - create the folder structure
+================================================
+1. We are going to structure our application/features in such a way that, if later in the future we decide to create a microservice out of the
+   application, we can easily decouple the different features.
+
+   - In the globals folders, there will be helper folders.
+
+2. Create `app.ts` file in the root. This is going to be the entry file to the application.
+3. Create `config.ts` file in the root.
+4. Create `routes.ts` file in the root.
+5. Create `setupDatabase.ts` file in the root.
+6. Create `setupServer.ts` file in the root.
+7. Both setupDatabase.ts and setupServer.ts files will be called inside the app.ts.
+8. Inside each feature, there will be controllers, interfaces, models, routes, schemes.
+
+================================================
+Fourth steps - start with the server
+================================================
+1. `setupServer.ts` file contains the startup server code.
+2. Install `express.js` framework.
+3. `npm i express`.
+4. `npm i --save-dev @types/express`
+5. `private app: Application;` just use to create an instance of the express application.
+
+====================================================
+Fifth steps - Standard middlewares and Server setup
+====================================================
+1. Install `npm i cors helmet hpp cookie-session compression express-async-errors http-status-codes`.
+2. compression - request, response will automatically be compressed.
+3. express-async-errors - In a lot of our controllers, we'll not be using try-catch. We already have the globalErrorHandler on the setupServer.ts. So, this
+                          package catches errors coming from async-await methods.
+4. Install the missing type packages.
+5. When we setup the load balancer on AWS, we need the name of the cookieSession.
+6. Install `npm i -g nodemon`.
+7. Add this script - "dev": "nodemon src/app.ts".
+8. When running the app, you'll get the error - `'ts-node' is not recognized as an internal or external command, operable program or batch file.`.
+9. So, we need to install `ts-node` to execute TS code locally - `npm i ts-node -D`.
+10. Now again run - `npm run dev`.
+
+11. Go to https://www.npmjs.com/package/tsconfig-paths - 'tsconfig-paths' library. Use this to load modules whose location is specified in the paths section of
+    tsconfig.json or jsconfig.json. Both loading at run-time and via API are supported. So, this helps us to change the absolute path. Normally, when absolute
+    paths are changed, it will give build errors since TS does not see our changes. That's why we need this library.
+12. Install `npm install --save-dev tsconfig-paths`.
+13. Change the script - `nodemon -r tsconfig-paths/register src/app.ts`.
+
+====================================================
+Sixth steps - Database connection setup
+====================================================
+1. Install mongoose - `npm i mongoose`.
+2. We don't need to install types as mongoose comes with it's own types.
+
+====================================================
+Seventh steps - Environment configurations
+====================================================
+1. Install `npm i dotenv`.
+2. Add `dotenv.config({});`
+
+====================================================
+Eights steps - Socket.io setup
+====================================================
+1. Go to https://www.npmjs.com/package/@socket.io/redis-adapter.
+2. Install `npm i @socket.io/redis-adapter`.
+3. Install `npm i socket.io`.
+4. Install `npm i redis`.
+5. These will help us maintain communication when using socket.io.
+6. We need these 3 imports,
+    - import { Server } from "socket.io";
+    - import { createClient } from "redis";
+    - import { createAdapter } from "@socket.io/redis-adapter";
+7. Create the server.
+    const io: Server = new Server(httpServer, {
+        cors: {
+        origin: config.CLIENT_URL,
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        }
+    })
+8. Create redis client.
+    - Make sure that redis is running on your machine.
+    const pubClient = createClient({ url: config.REDIS_HOST });
+    const subClient = pubClient.duplicate();
+
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+    io.adapter(createAdapter(pubClient, subClient));
+    return io;
+
+====================================================
+Ninth steps - Routes setup
+====================================================
+1. Not a big deal.
+
+====================================================
+Tenth steps - Global error handler
+====================================================
+1. To catch errors related to URLs that are not available, we can use `app.all("*", ...)` in express.
+2. To catch the actual custom errors,
+    app.use(
+        (
+        error: IErrorResponse,
+        _req: Request,
+        res: Response,
+        next: NextFunction
+        ) => {
+            console.log(error);
+
+            if (error instanceof CustomError) {
+                return res.status(error.statusCode).json(error.serializeErrors());
+            }
+            next();
+        }
+    );
+
+====================================================
+Eleventh steps - Logging
+====================================================
+1. Go to https://www.npmjs.com/package/bunyan.
+2. Install `npm i bunyan`.
+3. Install `npm i --save-dev @types/bunyan`
+4. Create a logger.
+5. To use the logger, update the dev script `"dev": "nodemon -r tsconfig-paths/register src/app.ts | ./node_modules/.bin/bunyan"`
+
+====================================================
+Twelfth steps - ESLint, Prettier, editor.config
+====================================================
+1. Editor.config - helps maintain consistent coding styles for multiple developers across projects.
+2. Install EditorConfig, ESLint and Prettier VS Code extensions.
+3. Install `npm i -D eslint eslint-config-prettier prettier @typescript-eslint/eslint-plugin @typescript-eslint/parser`.
+4. Create `.prettierrc.json` file.
+5. Create `.eslintrc.json` file.
+6. Add these scripts.
+		"lint:check": "eslint \"src/**/*.ts\"",
+		"lint:fix": "eslint \"src/**/*.ts\" --fix",
+		"prettier:check": "prettier --check \"src/**/*.{ts, json}\"",
+		"prettier:fix": "prettier --write \"src/**/*.{ts, json}\""
+
+====================================================
+Thirteenth steps - Setup git
+====================================================
+1. Create a git repository in github.
+2. Run `git init` in the console.
+3. Create a .gitignore file in the root.
+4. Go to the browser and type `gitignore.io`.
+5. Type `node` and click Create.
+6. Copy and paste the content in the .gitignore file.
+7. Create a `.eslintignore` file in the root and paste the same content. So, eslint won't check these files or directories.
+8. Run `git add .`
+9. Run `git commit -m "setup project"`
+10. Run `git branch -M main`
+11. Add the remote, `git remote add origin <url>`.
+12. Run `git push -u origin main`.
